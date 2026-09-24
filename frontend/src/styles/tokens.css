@@ -1,0 +1,226 @@
+/**
+ * 设计令牌与全局样式（文件级注释）
+ * ------------------------------------------------------------------
+ * 核心功能：按 UI-DESIGN.md 第 2 章落地 :root CSS 设计令牌；覆写 Element Plus
+ *          运行时变量（--el-*）使主题色与令牌对齐；定义全局基础样式、
+ *          页面入场动画（R2 红线：淡入 + 8px 上移，220ms ease-out）、
+ *          键盘焦点环（:focus-visible）、表格细节与滚动条样式。
+ * 设计思路：业务代码禁止出现裸色值，一律引用变量；html 固定 16px 基准保证缩放稳定（R6）。
+ * 适用场景：main.ts 全局引入。
+ * 创建时间：2026-09-21
+ */
+
+:root {
+  /* ---- 品牌主色阶（Cyan）---- */
+  --brand-50: #ecfeff;
+  --brand-100: #cffafe;
+  --brand-200: #a5f3fc;
+  --brand-400: #22d3ee;
+  --brand-500: #06b6d4;
+  --brand-600: #0891b2;
+  --brand-700: #0e7490;
+  --brand-800: #155e75;
+  --brand-900: #164e63;
+
+  /* ---- 中性色阶（Slate）---- */
+  --neutral-25: #f8fafc;
+  --neutral-50: #f1f5f9;
+  --neutral-100: #e2e8f0;
+  --neutral-300: #cbd5e1;
+  --neutral-400: #94a3b8;
+  --neutral-500: #64748b;
+  --neutral-600: #475569;
+  --neutral-800: #1e293b;
+  --neutral-900: #0f172a;
+
+  /* ---- 语义色 ---- */
+  --success-500: #10b981;
+  --success-bg: #d1fae5;
+  --success-text: #047857;
+  --warning-500: #f59e0b;
+  --warning-bg: #fef3c7;
+  --warning-text: #b45309;
+  --danger-500: #ef4444;
+  --danger-bg: #fee2e2;
+  --danger-text: #b91c1c;
+  --info-500: #3b82f6;
+  --info-bg: #dbeafe;
+  --info-text: #1d4ed8;
+
+  /* ---- 字体 ---- */
+  --font-family: -apple-system, 'Segoe UI', system-ui, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, Consolas, 'Courier New', monospace;
+
+  /* ---- 阴影 ---- */
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.12);
+
+  /* ---- 布局尺寸 ---- */
+  --sidebar-w: 240px;
+  --sidebar-collapsed-w: 64px;
+  --topbar-h: 56px;
+
+  /* ---- Element Plus 运行时变量覆写（与令牌对齐）---- */
+  --el-color-primary: var(--brand-500);
+  --el-color-primary-light-3: var(--brand-600);
+  --el-color-primary-light-5: var(--brand-400);
+  --el-color-primary-light-7: var(--brand-200);
+  --el-color-primary-light-8: var(--brand-100);
+  --el-color-primary-light-9: var(--brand-50);
+  --el-color-primary-dark-2: var(--brand-700);
+  --el-color-success: var(--success-500);
+  --el-color-warning: var(--warning-500);
+  --el-color-danger: var(--danger-500);
+  --el-color-error: var(--danger-500);
+  --el-color-info: var(--neutral-400);
+  --el-text-color-primary: var(--neutral-800);
+  --el-text-color-regular: var(--neutral-600);
+  --el-text-color-secondary: var(--neutral-500);
+  --el-text-color-placeholder: var(--neutral-400);
+  --el-text-color-disabled: var(--neutral-400);
+  --el-border-color: var(--neutral-100);
+  --el-border-color-light: var(--neutral-100);
+  --el-border-color-lighter: var(--neutral-50);
+  --el-fill-color-light: var(--neutral-25);
+  --el-fill-color-blank: #ffffff;
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
+  --el-border-radius-round: 999px;
+  --el-font-size-base: 14px;
+  --el-font-size-small: 13px;
+  --el-font-size-extra-small: 12px;
+}
+
+/* ================= 全局基础 ================= */
+html {
+  font-size: 16px; /* 固定基准（R6 缩放稳定） */
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  color: var(--neutral-800);
+  background-color: var(--neutral-50); /* 全局底色：浅灰蓝，禁止大面积纯白（R1） */
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+/* 数字等宽（关键数字列） */
+.num,
+.el-table .cell.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 等宽字体（SKU/单号/IP） */
+.mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* ================= 键盘焦点环（7.3 全局强制） ================= */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ================= 页面切换入场动画（R2 强制，220ms） ================= */
+.page-enter-active {
+  animation: pageIn 220ms ease-out;
+}
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active {
+    animation: none;
+  }
+}
+
+/* ================= Element Plus 细节对齐 ================= */
+
+/* 表格：表头底色 / 行高 / 斑马纹 / hover */
+.el-table {
+  --el-table-header-bg-color: var(--neutral-25);
+  --el-table-header-text-color: var(--neutral-600);
+  --el-table-row-hover-bg-color: var(--brand-50);
+  --el-table-border-color: var(--neutral-100);
+  border-radius: 8px;
+}
+.el-table th.el-table__cell {
+  font-weight: 500;
+  font-size: 13px;
+}
+.el-table .el-table__cell {
+  padding: 12px 0;
+}
+
+/* 弹窗：遮罩点击不关闭由组件属性控制；圆角 12px */
+.el-dialog {
+  border-radius: 12px;
+}
+.el-drawer {
+  border-radius: 12px 0 0 12px;
+}
+
+/* 消息提示：顶部 24px */
+.el-message {
+  top: 24px !important;
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+}
+
+/* 主按钮 500 字重（对比度豁免补偿） */
+.el-button--primary {
+  font-weight: 500;
+}
+.el-button {
+  font-weight: 500;
+}
+
+/* Switch 低库存激活色（琥珀） */
+.el-switch.is-checked .el-switch__core {
+  background-color: var(--warning-500);
+  border-color: var(--warning-500);
+}
+
+/* 分页器 */
+.el-pagination {
+  --el-pagination-hover-color: var(--brand-500);
+}
+
+/* 页面内容卡片通用样式 */
+.card {
+  background: #ffffff;
+  border: 1px solid var(--neutral-100);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+}
+
+/* 全局滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--neutral-300);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

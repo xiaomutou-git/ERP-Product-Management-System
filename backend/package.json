@@ -1,0 +1,28 @@
+{
+  "name": "erp-backend",
+  "version": "1.0.0",
+  "description": "ERP商品管理系统后端服务（Express + SQLite）",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "build": "node -e \"const fs=require('fs'),p=require('path'),c=require('child_process');const w=d=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?w(p.join(d,e.name)):[p.join(d,e.name)]).filter(f=>f.endsWith('.js'));let bad=0;for(const f of w('src')){try{c.execSync(process.execPath+' --check '+JSON.stringify(f),{stdio:'pipe'})}catch(e){bad=1;console.error('语法错误:',f,String(e.stderr))}}console.log(bad?'[build] 语法检查失败':'[build] src 全部 JS 语法检查通过');process.exit(bad)\""
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^12.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.24.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
+  }
+}
