@@ -12,7 +12,7 @@
 
 ## 零、总评
 
-这是一套"设计稿写得很满、实现交卷参差"的系统。设计文档 [docs/UI-DESIGN.md](项目根目录\docs\UI-DESIGN.md) 承诺了逐像素级规范、四类空态、键盘可达、焦点陷阱、状态色全站唯一映射——实测证明其中相当一部分是"文档里的一厢情愿"。更要命的是**采购详情抽屉的字段断链**（后端 snake_case / 前端 camelCase），让系统最核心的单据可信度当场崩塌：一张已入库的采购单，头部没有单号、创建时间显示"—"、合计显示"¥—"。这种"演示时会被客户当场问死"的问题，比任何配色瑕疵都严重一百倍。
+这是一套"设计稿写得很满、实现交卷参差"的系统。设计文档 [docs/UI-DESIGN.md](docs\UI-DESIGN.md) 承诺了逐像素级规范、四类空态、键盘可达、焦点陷阱、状态色全站唯一映射——实测证明其中相当一部分是"文档里的一厢情愿"。更要命的是**采购详情抽屉的字段断链**（后端 snake_case / 前端 camelCase），让系统最核心的单据可信度当场崩塌：一张已入库的采购单，头部没有单号、创建时间显示"—"、合计显示"¥—"。这种"演示时会被客户当场问死"的问题，比任何配色瑕疵都严重一百倍。
 
 ---
 
@@ -21,7 +21,7 @@
 **总体观感**：干净、克制、无廉价动画，第一眼是合格的 B 端工具脸。但经不起放大看——它是"用 Element Plus 默认件 + 一个青色"拼出来的模板脸，没有一处让人记住的品牌记忆点，属于典型的"AI 生成感"安全区审美。
 
 ### A-1【P2】"全站唯一状态色来源"名存实亡，裸色值系统性违反自家红线
-- 【问题描述】UI-DESIGN 第 2 章白纸黑字："业务代码禁止出现裸色值，一律引用变量"。实测：[format.ts](项目根目录\frontend\src\utils\format.ts#L51-L71) 全部状态映射、[SuppliersView.vue 状态列](项目根目录\frontend\src\views\SuppliersView.vue#L268)、[UsersView.vue 强度色](项目根目录\frontend\src\views\UsersView.vue#L82)、[DashboardView.vue 统计卡内联 style](项目根目录\frontend\src\views\DashboardView.vue#L145)、[InventoryView.vue](项目根目录\frontend\src\views\InventoryView.vue#L276) 的 `active-color="#F59E0B"`（Element Plus 已废弃 API）——色值散落 6 个文件 20+ 处。
+- 【问题描述】UI-DESIGN 第 2 章白纸黑字："业务代码禁止出现裸色值，一律引用变量"。实测：[format.ts](frontend\src\utils\format.ts#L51-L71) 全部状态映射、[SuppliersView.vue 状态列](frontend\src\views\SuppliersView.vue#L268)、[UsersView.vue 强度色](frontend\src\views\UsersView.vue#L82)、[DashboardView.vue 统计卡内联 style](frontend\src\views\DashboardView.vue#L145)、[InventoryView.vue](frontend\src\views\InventoryView.vue#L276) 的 `active-color="#F59E0B"`（Element Plus 已废弃 API）——色值散落 6 个文件 20+ 处。
 - 【严重程度】P2
 - 【具体位置/复现】上述文件逐处可查；改一次品牌色需要动 6 个文件，tokens.css 的 `--brand-*` 变量形同虚设。
 - 【改进建议】删除所有内联色值，状态映射统一收敛到一个引用 CSS 变量的模块；`active-color` 改用 CSS 覆写（tokens.css 里其实已经写了 switch 琥珀覆写，此属性纯属重复且触发 EP 废弃告警）。
@@ -29,7 +29,7 @@
 ### A-2【P2】登录卡实测 464px 宽，设计承诺 400px——"逐像素落地"第一枪就脱靶
 - 【问题描述】UI-DESIGN 5.1 规定登录卡"宽 400px，内边距 40px 32px"。Playwright 实测 `.login-card` bounding box 为 **464×329px**（400 + 左右 padding 64，未按 border-box 落地）。
 - 【严重程度】P2
-- 【具体位置/复现】[LoginView.vue](项目根目录\frontend\src\views\LoginView.vue#L173-L177)，任何浏览器 DevTools 量一下即现。
+- 【具体位置/复现】[LoginView.vue](frontend\src\views\LoginView.vue#L173-L177)，任何浏览器 DevTools 量一下即现。
 - 【改进建议】全局 `*{box-sizing:border-box}` 或该卡显式声明；既然设计稿自称"逐像素落地实现"，就别让第一个元素就差 64px。
 
 ### A-3【P3】登录页装饰是"无效装饰"
@@ -40,13 +40,13 @@
 ### A-4【P2】商品表格"分类"列文本换行，行高参差
 - 【问题描述】分类列宽 140px 塞"电子产品 / 手机数码"两级文本，实测截图（07_product_dialog.png 背景表格）中 SKU-1004/1005/1006 等多行均折成两行，行高被撑破 48px 规格，斑马纹视觉节奏被打乱。
 - 【严重程度】P2
-- 【具体位置/复现】[ProductsView.vue 分类列](项目根目录\frontend\src\views\ProductsView.vue#L444-L446)，打开商品列表即可见。
+- 【具体位置/复现】[ProductsView.vue 分类列](frontend\src\views\ProductsView.vue#L444-L446)，打开商品列表即可见。
 - 【改进建议】列宽加大到 170px 或启用 `show-overflow-tooltip`；二级分类只显示二级名 + hover 全路径。
 
 ### A-5【P3】看板金额格式精神分裂：卡片无千分位，tooltip 有
 - 【问题描述】统计卡显示 `¥4205.00`（无千分位），而图表 tooltip 用 `toLocaleString` 显示 `¥1,234.56`。同一个数字两种格式，B 端财务语境里这是不可接受的细节粗糙。
 - 【严重程度】P3
-- 【位置】[DashboardView.vue 卡片](项目根目录\frontend\src\views\DashboardView.vue#L194) vs [tooltip formatter](项目根目录\frontend\src\views\DashboardView.vue#L73-L76)。
+- 【位置】[DashboardView.vue 卡片](frontend\src\views\DashboardView.vue#L194) vs [tooltip formatter](frontend\src\views\DashboardView.vue#L73-L76)。
 - 【改进建议】`fen2yuan` 增加千分位选项并全站统一。
 
 ### A-6【P3】图表 Y 轴无单位标注
@@ -55,7 +55,7 @@
 - 【改进建议】Y 轴 name 设为"元"，或 tooltip/轴标签带单位。
 
 ### A-7【P3】空态插图承诺 9 种题材，实际全站一张纸箱
-- 【问题描述】UI-DESIGN 6.3 承诺"商品/分类/供应商/采购/库存/流水/用户/日志/404"9 种自绘线稿题材；实现里 [EmptyState.vue](项目根目录\frontend\src\components\EmptyState.vue) 只有一张纸箱图吃遍全站（仅点缀圆点可换色），404 另有一张。承诺的题材分化没有兑现。
+- 【问题描述】UI-DESIGN 6.3 承诺"商品/分类/供应商/采购/库存/流水/用户/日志/404"9 种自绘线稿题材；实现里 [EmptyState.vue](frontend\src\components\EmptyState.vue) 只有一张纸箱图吃遍全站（仅点缀圆点可换色），404 另有一张。承诺的题材分化没有兑现。
 - 【严重程度】P3
 
 ---
@@ -65,14 +65,14 @@
 这是全系统最失分的维度。设计稿把"反馈即时、错误有位、空态四类"写得漂漂亮亮，实测交卷如下。
 
 ### B-1【P0】采购详情抽屉字段断链：单号没了、金额"¥—"、时间"—"满天飞
-- 【问题描述】**后端详情接口返回 snake_case，前端按 camelCase 读取**。curl 实测 `GET /api/purchase-orders/2` 返回 `order_no / total_amount / created_at / submitted_at / received_at / cancel_reason`（[后端详情响应实测](项目根目录\backend)），而 [PurchaseOrdersView.vue](项目根目录\frontend\src\views\PurchaseOrdersView.vue#L303-L354) 读的是 `detail.orderNo / detail.totalAmount / detail.createdAt / detail.submittedAt / detail.receivedAt / detail.cancelReason`。
+- 【问题描述】**后端详情接口返回 snake_case，前端按 camelCase 读取**。curl 实测 `GET /api/purchase-orders/2` 返回 `order_no / total_amount / created_at / submitted_at / received_at / cancel_reason`（[后端详情响应实测](backend)），而 [PurchaseOrdersView.vue](frontend\src\views\PurchaseOrdersView.vue#L303-L354) 读的是 `detail.orderNo / detail.totalAmount / detail.createdAt / detail.submittedAt / detail.receivedAt / detail.cancelReason`。
 - 【实测后果】（截图 12_po_drawer.png / 25_mobile_drawer.png）一张**已入库**采购单：① 抽屉头部单号完全空白；② 创建时间显示"—"；③ 步骤条"已提交/已入库"节点时间全是"—"；④ 明细合计显示 **"¥—"**（明细小计 5.00 明明正常）；⑤ 已取消单据的取消原因将无法显示。列表页字段正常（说明列表/详情两个接口大小写风格不统一，契约混乱实锤）。
 - 【严重程度】P0
 - 【复现】采购管理 → 点任意单号打开抽屉，肉眼可见。
 - 【改进建议】后端统一响应字段为 camelCase（或 axios 层加全局下划线转驼峰拦截器）；补一条"详情响应字段"的集成测试，防回归。
 
 ### B-2【P0】用户页空态"开天窗"：EmptyState 没 import，控制台持续报警
-- 【问题描述】[UsersView.vue 第 295 行](项目根目录\frontend\src\views\UsersView.vue#L295) 使用 `<EmptyState>` 但**全文件没有 import**。实测空搜索 `/users?keyword=zzzzz_no_exist`：空态区域渲染为彻底空白（`.empty-state` 元素数 = 0），控制台连续输出 `[Vue warn] Failed to resolve component: EmptyState`。
+- 【问题描述】[UsersView.vue 第 295 行](frontend\src\views\UsersView.vue#L295) 使用 `<EmptyState>` 但**全文件没有 import**。实测空搜索 `/users?keyword=zzzzz_no_exist`：空态区域渲染为彻底空白（`.empty-state` 元素数 = 0），控制台连续输出 `[Vue warn] Failed to resolve component: EmptyState`。
 - 【严重程度】P0（直接违反 UI-DESIGN 4.8"四类空态"的底线交付，且是 10 秒就能修的低级错误）
 - 【复现】用户管理 → 搜索一个不存在的用户名。
 - 【改进建议】补 import；建议加 `eslint-plugin-vue` 的 `vue/no-undef-components` 规则防再犯。
@@ -80,50 +80,50 @@
 ### B-3【P1】所有列表页把"接口报错"伪装成"暂无数据"
 - 【问题描述】五个列表页的 `loadList()` 统一 `catch { rows.value = [] }`，后果：后端挂掉/断网时，页面显示"暂无商品数据/暂无采购单"——**错误被翻译成了错误的业务结论**。UI-DESIGN 4.8 明确要求四类空态之一是"加载失败 + 重试按钮"，实测只有看板做了错误态（且统计卡内只有"加载失败"三个字没有重试按钮，重试按钮被放到了图表区）。
 - 【严重程度】P1
-- 【位置】[ProductsView.vue loadList](项目根目录\frontend\src\views\ProductsView.vue#L85-L102) 及 Suppliers/PO/Inventory/AuditLogs 同款写法。
+- 【位置】[ProductsView.vue loadList](frontend\src\views\ProductsView.vue#L85-L102) 及 Suppliers/PO/Inventory/AuditLogs 同款写法。
 - 【复现】杀掉后端进程刷新任意列表页。
 - 【改进建议】catch 中区分错误类型，置 `loadError=true` 渲染 EmptyState 的"加载失败 + 重试"变体。
 
 ### B-4【P1】审计日志"查看"是死链接
 - 【问题描述】详情列渲染 `<span class="detail-link">查看</span>`，样式给了 `cursor:pointer`（长得可点），**但没有绑定任何 click 事件**。Playwright 实测点击后 `.expand-body` 数量为 0（展开只能靠最左侧那个展开箭头）。
 - 【严重程度】P1（视觉说谎：可点击的外貌 + 不可点击的行为）
-- 【位置】[AuditLogsView.vue](项目根目录\frontend\src\views\AuditLogsView.vue#L174-L178)
+- 【位置】[AuditLogsView.vue](frontend\src\views\AuditLogsView.vue#L174-L178)
 - 【改进建议】点击"查看"时调用 el-table 的 `toggleRowExpansion`，或删掉假链接只留箭头。
 
 ### B-5【P1】库存页"仅看低库存"：看板跳转生效，同页点铃铛失效
-- 【问题描述】`filters.lowStock` 只在 setup 时读一次 `route.query.lowStock`（[InventoryView.vue L33](项目根目录\frontend\src\views\InventoryView.vue#L33)），没有 watch route。当用户已在 /inventory 页面点击顶栏铃铛（push `/inventory?lowStock=1`），组件复用、query 变了但开关纹丝不动。
+- 【问题描述】`filters.lowStock` 只在 setup 时读一次 `route.query.lowStock`（[InventoryView.vue L33](frontend\src\views\InventoryView.vue#L33)），没有 watch route。当用户已在 /inventory 页面点击顶栏铃铛（push `/inventory?lowStock=1`），组件复用、query 变了但开关纹丝不动。
 - 【严重程度】P1
 - 【复现】停留在库存管理页 → 点顶栏铃铛 → 开关无反应。
 - 【改进建议】`watch(() => route.query.lowStock, ...)` 同步开关。
 
 ### B-6【P1】编辑草稿时供应商被"锁死"
-- 【问题描述】[PurchaseOrderFormView.vue](项目根目录\frontend\src\views\PurchaseOrderFormView.vue#L273-L288)：编辑草稿时若原供应商已停用，模板直接渲染纯文本 + "已停用" Tag（v-if 分支），**不渲染下拉框**——用户完全无法把供应商换成别人。设计原意只是"保留显示并标注"，不是"剥夺修改权"。
+- 【问题描述】[PurchaseOrderFormView.vue](frontend\src\views\PurchaseOrderFormView.vue#L273-L288)：编辑草稿时若原供应商已停用，模板直接渲染纯文本 + "已停用" Tag（v-if 分支），**不渲染下拉框**——用户完全无法把供应商换成别人。设计原意只是"保留显示并标注"，不是"剥夺修改权"。
 - 【严重程度】P1
 - 【改进建议】文本旁保留"更换供应商"入口，点击切换回下拉；默认仍选中原供应商。
 
 ### B-7【P1】"创建成功但提交失败"会制造幽灵草稿
-- 【问题描述】新建单直接提交走 `createPurchaseOrder → submitPurchaseOrder` 两段式（[PurchaseOrderFormView.vue saveDraft(true)](项目根目录\frontend\src\views\PurchaseOrderFormView.vue#L184-L204)）。第一步成功、第二步失败时：草稿已经落库，但用户停留在原页面，界面上没有任何"草稿已创建"的痕迹；用户再点一次"提交采购单"→ **再建一张一模一样的草稿**。
+- 【问题描述】新建单直接提交走 `createPurchaseOrder → submitPurchaseOrder` 两段式（[PurchaseOrderFormView.vue saveDraft(true)](frontend\src\views\PurchaseOrderFormView.vue#L184-L204)）。第一步成功、第二步失败时：草稿已经落库，但用户停留在原页面，界面上没有任何"草稿已创建"的痕迹；用户再点一次"提交采购单"→ **再建一张一模一样的草稿**。
 - 【严重程度】P1（数据重复风险 + 用户无感知）
 - 【改进建议】创建成功后立即用返回 id 把路由替换成编辑页，再走提交；或失败 toast 中带上单号并给出"前往草稿"链接。
 
 ### B-8【P2】进价默认填的是"售价"
-- 【问题描述】选中商品追加明细时 `unitPriceYuan = salePrice/100`（[PurchaseOrderFormView.vue L125](项目根目录\frontend\src\views\PurchaseOrderFormView.vue#L125)）——**把销售价当采购进价预填**。业务语义完全错位：采购员稍不留神，采购成本就被售价污染，报表金额失真。
+- 【问题描述】选中商品追加明细时 `unitPriceYuan = salePrice/100`（[PurchaseOrderFormView.vue L125](frontend\src\views\PurchaseOrderFormView.vue#L125)）——**把销售价当采购进价预填**。业务语义完全错位：采购员稍不留神，采购成本就被售价污染，报表金额失真。
 - 【严重程度】P2（虽可修改，但默认值应该是 0 或空 + 必填校验）
 - 【改进建议】预填空值并聚焦该输入框，placeholder 提示"请输入进价"。
 
 ### B-9【P2】出库超量的"库存不足"错误挂在"调整原因"字段下
-- 【问题描述】调整库存弹窗用单个 `adjustError` 变量同时服务"原因未填"和"库存不足"两种错误（[InventoryView.vue submitAdjust](项目根目录\frontend\src\views\InventoryView.vue#L135-L155)），错误永远渲染在"调整原因"表单项下——数量超了却怪原因没写，错误定位误导用户。
+- 【问题描述】调整库存弹窗用单个 `adjustError` 变量同时服务"原因未填"和"库存不足"两种错误（[InventoryView.vue submitAdjust](frontend\src\views\InventoryView.vue#L135-L155)），错误永远渲染在"调整原因"表单项下——数量超了却怪原因没写，错误定位误导用户。
 - 【严重程度】P2
 - 【改进建议】数量与原因各自独立 error 槽位。
 
 ### B-10【P2】"添加商品"是假按钮 + 说教文案
 - 【问题描述】明细表空行中的虚线"添加商品"整行可点（有 hover 变色），点上去却只弹一句 **"请使用上方商品选择器搜索并添加商品"**（Playwright 实测 toast 原文）。把最自然的点击路径做成"教用户做事"的警告，属于典型反模式。UI-DESIGN 5.5 的原意是"添加商品 Default 按钮（虚线边框，整行宽）"——即点了就该打开商品选择器。
 - 【严重程度】P2
-- 【位置】[PurchaseOrderFormView.vue L338-L344](项目根目录\frontend\src\views\PurchaseOrderFormView.vue#L338-L344)
+- 【位置】[PurchaseOrderFormView.vue L338-L344](frontend\src\views\PurchaseOrderFormView.vue#L338-L344)
 - 【改进建议】点击虚线行 = 直接 focus 商品搜索下拉并展开。
 
 ### B-11【P2】多 toast 会叠成一层：全局 CSS 覆写破坏堆叠
-- 【问题描述】[tokens.css](项目根目录\frontend\src\styles\tokens.css#L181-L185) 写死 `.el-message { top: 24px !important; }`，而 Element Plus 靠每个实例内联 top 实现多实例纵向堆叠——`!important` 一刀切后，连续两三条提示（如"提交成功"+"库存不足"）会**重叠在同一位置**。设计 4.6 明确要求"多实例纵向堆叠间距 12px"。
+- 【问题描述】[tokens.css](frontend\src\styles\tokens.css#L181-L185) 写死 `.el-message { top: 24px !important; }`，而 Element Plus 靠每个实例内联 top 实现多实例纵向堆叠——`!important` 一刀切后，连续两三条提示（如"提交成功"+"库存不足"）会**重叠在同一位置**。设计 4.6 明确要求"多实例纵向堆叠间距 12px"。
 - 【严重程度】P2
 - 【改进建议】删掉该覆写，改用 EP 的 `grouping`/`offset` 或接受默认 16px。
 
@@ -133,17 +133,17 @@
 - 【改进建议】接入 el-form rules 体系，提交失败 focus 第一错误项；单行输入框 Enter 提交。
 
 ### B-13【P2】取消采购单弹窗：两个"取消"按钮打架
-- 【问题描述】取消原因弹窗 footer 是 [取消] [确认取消]（[PurchaseOrdersView.vue L374-L380](项目根目录\frontend\src\views\PurchaseOrdersView.vue#L374-L380)）。左边"取消"= 放弃取消操作，右边"确认取消"= 执行取消——同一屏两个"取消"语义相反，紧张的用户很容易点错。行业惯例是"关闭/放弃"或"再想想"。
+- 【问题描述】取消原因弹窗 footer 是 [取消] [确认取消]（[PurchaseOrdersView.vue L374-L380](frontend\src\views\PurchaseOrdersView.vue#L374-L380)）。左边"取消"= 放弃取消操作，右边"确认取消"= 执行取消——同一屏两个"取消"语义相反，紧张的用户很容易点错。行业惯例是"关闭/放弃"或"再想想"。
 - 【严重程度】P2
 - 【改进建议】左侧按钮改"再想想"或"放弃操作"。
 
 ### B-14【P3】双层 transition 无 out-in，路由切换瞬间新旧页面同屏
-- 【问题描述】[App.vue](项目根目录\frontend\src\App.vue#L11-L15) 与 [MainLayout.vue](项目根目录\frontend\src\layouts\MainLayout.vue#L229-L234) 都包了 `<transition name="page">`，均未设置 `mode="out-in"`——切页瞬间新旧两个页面组件同时存在于文档流（各自 220ms 位移），内容区出现一次可感知的"双页跳动"，越长越明显的页面越明显。
+- 【问题描述】[App.vue](frontend\src\App.vue#L11-L15) 与 [MainLayout.vue](frontend\src\layouts\MainLayout.vue#L229-L234) 都包了 `<transition name="page">`，均未设置 `mode="out-in"`——切页瞬间新旧两个页面组件同时存在于文档流（各自 220ms 位移），内容区出现一次可感知的"双页跳动"，越长越明显的页面越明显。
 - 【严重程度】P3
 - 【改进建议】内层 transition 加 `mode="out-in"`，外层只在登录/主布局切换时生效。
 
 ### B-15【P3】手动改侧栏折叠态，随便拖一下窗口就被重置
-- 【问题描述】[MainLayout.vue onResize](项目根目录\frontend\src\layouts\MainLayout.vue#L70-L77)：任何 resize 事件都会按宽度强设 `collapsed`——1024~1279 区间手动展开侧栏后，拖动 1px 窗口边缘立刻被弹回收起。
+- 【问题描述】[MainLayout.vue onResize](frontend\src\layouts\MainLayout.vue#L70-L77)：任何 resize 事件都会按宽度强设 `collapsed`——1024~1279 区间手动展开侧栏后，拖动 1px 窗口边缘立刻被弹回收起。
 - 【严重程度】P3
 - 【改进建议】只在跨越断点时重置，尊重用户手动状态。
 
@@ -159,7 +159,7 @@
 - 【改进建议】从 route.matched 生成真实层级，create/edit 页补父级。
 
 ### C-2【P3】菜单叫"用户管理"，页面标题叫"用户与角色管理"
-- 【问题描述】侧栏菜单 [MainLayout.vue L40](项目根目录\frontend\src\layouts\MainLayout.vue#L40) 写"用户管理"，页面内标题是"用户与角色管理"（UsersView）。系统里唯一一个菜单与页头不一致的页面，新人培训时口径分裂。
+- 【问题描述】侧栏菜单 [MainLayout.vue L40](frontend\src\layouts\MainLayout.vue#L40) 写"用户管理"，页面内标题是"用户与角色管理"（UsersView）。系统里唯一一个菜单与页头不一致的页面，新人培训时口径分裂。
 - 【严重程度】P3
 - 【改进建议】统一为"用户管理"。
 
@@ -173,31 +173,31 @@
 ## 四、功能完整性与边界场景（得分 5.0 / 10）
 
 ### D-1【P0】写权限门禁形同虚设：`void can(...)` 的行为艺术
-- 【问题描述】[PurchaseOrderFormView.vue L29-30](项目根目录\frontend\src\views\PurchaseOrderFormView.vue#L29-L30) 写着 `void can(auth.user?.role, 'purchase:write');` ——调用后**丢弃结果**，页面上"保存草稿/提交采购单"按钮对 viewer / stockkeeper 照常渲染。路由表（[router/index.ts](项目根目录\frontend\src\router\index.ts#L29-L30)）也没给 create/edit 加 `meta.roles`。查看员手动输入 `/purchase-orders/create` 即可看到完整可用表单，点提交才吃 403。这直接违反 UI-DESIGN 1.3 原则 3"无权限的操作按钮直接不渲染（非置灰）"和 PRD S6。
+- 【问题描述】[PurchaseOrderFormView.vue L29-30](frontend\src\views\PurchaseOrderFormView.vue#L29-L30) 写着 `void can(auth.user?.role, 'purchase:write');` ——调用后**丢弃结果**，页面上"保存草稿/提交采购单"按钮对 viewer / stockkeeper 照常渲染。路由表（[router/index.ts](frontend\src\router\index.ts#L29-L30)）也没给 create/edit 加 `meta.roles`。查看员手动输入 `/purchase-orders/create` 即可看到完整可用表单，点提交才吃 403。这直接违反 UI-DESIGN 1.3 原则 3"无权限的操作按钮直接不渲染（非置灰）"和 PRD S6。
 - 【严重程度】P0（权限语义层面）
 - 【复现】用 viewer 账号登录 → 地址栏输入 /purchase-orders/create。
 - 【改进建议】路由 meta.roles 限 purchaser/admin；页面内按钮 v-if 接 `can()`；删掉那行 `void can`。
 
 ### D-2【P1】SKU 唯一性预检：模糊搜索取 1 条，漏检是大概率事件
-- 【问题描述】[checkSku](项目根目录\frontend\src\views\ProductsView.vue#L162-L174) 用 `listProducts({ page:1, pageSize:1, keyword: form.sku })` 做预检——keyword 是名称/SKU 的 **LIKE %kw% 模糊匹配且只取第 1 条**。只要存在任何"名称里恰好包含该 SKU 子串"或"SKU 更接近关键词排序靠前"的商品排在前面，真正重复的那条根本不在返回里，行内"SKU 已存在"不出现，直到提交时才吃后端 409。预检沦为装饰。
+- 【问题描述】[checkSku](frontend\src\views\ProductsView.vue#L162-L174) 用 `listProducts({ page:1, pageSize:1, keyword: form.sku })` 做预检——keyword 是名称/SKU 的 **LIKE %kw% 模糊匹配且只取第 1 条**。只要存在任何"名称里恰好包含该 SKU 子串"或"SKU 更接近关键词排序靠前"的商品排在前面，真正重复的那条根本不在返回里，行内"SKU 已存在"不出现，直到提交时才吃后端 409。预检沦为装饰。
 - 【严重程度】P1
 - 【复现】造一个名称为 "TEST-001 系列" 的商品，再录入 SKU=TEST-001，失焦无报错。
 - 【改进建议】后端加 `GET /api/products/check-sku?sku=` 专用精确接口，前端防抖调用。
 
 ### D-3【P1】分类右表 pageSize:100 无分页：超过 100 个商品静默截断
-- 【问题描述】[loadCatProducts](项目根目录\frontend\src\views\ProductsView.vue#L285-L299) 写死 `page:1, pageSize:100`，右侧表格无分页器、无总数提示。第 101 个商品起**无声消失**，用户会得出"分类下没几个商品"的错误结论。
+- 【问题描述】[loadCatProducts](frontend\src\views\ProductsView.vue#L285-L299) 写死 `page:1, pageSize:100`，右侧表格无分页器、无总数提示。第 101 个商品起**无声消失**，用户会得出"分类下没几个商品"的错误结论。
 - 【严重程度】P1
 - 【改进建议】补分页；或至少显示"共 N 件，仅显示前 100"。
 
 ### D-4【P1】采购单列表操作列没有"删除"
 - 【问题描述】UI-DESIGN 5.5 明确"draft 追加'编辑''删除'（红色）"，实测列表操作列只有 详情/编辑（Playwright 读到 `po_operate_btns = ["PO202609210002", "详情"]`，draft 行多一个编辑），删除只能进抽屉找。少一个高频入口，采购员删草稿要多点两下。
 - 【严重程度】P1（承诺未兑现）
-- 【位置】[PurchaseOrdersView.vue 操作列](项目根目录\frontend\src\views\PurchaseOrdersView.vue#L279-L286)
+- 【位置】[PurchaseOrdersView.vue 操作列](frontend\src\views\PurchaseOrdersView.vue#L279-L286)
 
 ### D-5【P1】库存流水"关联单号"不可点击
 - 【问题描述】UI-DESIGN 5.6 承诺"采购入库可点击跳转对应采购单详情"，实测流水表关联单号是纯文本（Playwright 探测 `.mono a/button` 数量 = 0）。溯源链路在最关键的一跳断了：看到 +50 是"采购入库"，却点不进去看是哪张单。
 - 【严重程度】P1
-- 【位置】[InventoryView.vue 流水列](项目根目录\frontend\src\views\InventoryView.vue#L387-L389)
+- 【位置】[InventoryView.vue 流水列](frontend\src\views\InventoryView.vue#L387-L389)
 - 【改进建议】ref_type=purchase_order 时渲染文字按钮，点击打开对应抽屉。
 
 ### D-6【P2】详情抽屉缺"提交时间/入库时间"字段；采购单无"流转记录"区块
@@ -219,7 +219,7 @@
 - 【严重程度】P2（取决于库状态，但验收口径必须澄清）
 
 ### D-10【P3】改密弹窗无校验规则，可空手提交
-- 【问题描述】[MainLayout.vue 改密弹窗](项目根目录\frontend\src\layouts\MainLayout.vue#L238-L254)三个输入框只有视觉红星，无 rules；全空点"确定修改"直接发请求等后端 400。且此弹窗与 LoginView 的改密表单是两套重复实现，规则口径（确认一致才前端拦）各管各的。
+- 【问题描述】[MainLayout.vue 改密弹窗](frontend\src\layouts\MainLayout.vue#L238-L254)三个输入框只有视觉红星，无 rules；全空点"确定修改"直接发请求等后端 400。且此弹窗与 LoginView 的改密表单是两套重复实现，规则口径（确认一致才前端拦）各管各的。
 - 【严重程度】P3
 - 【改进建议】抽一个 ChangePasswordForm 组件复用，接 rules。
 
@@ -256,16 +256,16 @@
 ### F-2【P1】Element Plus / ECharts 全量引入：懒加载是形式主义
 - 【问题描述】pnpm build 实测产物：`index.js 1,135KB（gzip 376KB）`（Element Plus 全量注册进主包）、`DashboardView.js 1,132KB（gzip 381KB）`（`import * as echarts from 'echarts'` 全量进看板 chunk）。PRD 4.1"单 JS chunk gzip ≤1MB"字面上压线达标，但"路由懒加载拆分"的本意被架空：主包塞满全站用不用得到的组件，看板 chunk 被 ECharts 撑到 1.1MB raw。低带宽内网/移动热点的 FCP 会明显劣化。
 - 【严重程度】P1
-- 【位置】[main.ts](项目根目录\frontend\src\main.ts#L11-L23)、[DashboardView.vue L15](项目根目录\frontend\src\views\DashboardView.vue#L15)
+- 【位置】[main.ts](frontend\src\main.ts#L11-L23)、[DashboardView.vue L15](frontend\src\views\DashboardView.vue#L15)
 - 【改进建议】`unplugin-vue-components` 按需引入 EP；ECharts 改 `echarts/core` + BarChart/CanvasRenderer 按需注册（看板 chunk 预期可降 60%+）。
 
 ### F-3【P1】顶栏铃铛每次路由跳转都打一次看板统计接口
-- 【问题描述】[MainLayout.vue](项目根目录\frontend\src\layouts\MainLayout.vue#L142) `watch(() => route.path, () => refreshBadge())`——切 7 个菜单 = 7 次 `/dashboard/stats` 请求，只为刷一个角标；同时 InventoryView 只在 lowStock 开启时反向写 `auth.lowStockCount`（[InventoryView.vue L70](项目根目录\frontend\src\views\InventoryView.vue#L70)），角标数据源两处互相覆盖。
+- 【问题描述】[MainLayout.vue](frontend\src\layouts\MainLayout.vue#L142) `watch(() => route.path, () => refreshBadge())`——切 7 个菜单 = 7 次 `/dashboard/stats` 请求，只为刷一个角标；同时 InventoryView 只在 lowStock 开启时反向写 `auth.lowStockCount`（[InventoryView.vue L70](frontend\src\views\InventoryView.vue#L70)），角标数据源两处互相覆盖。
 - 【严重程度】P1（性能 + 数据一致性双输）
 - 【改进建议】角标在库存写操作后定点刷新，或 60s 轮询一次，删掉路由 watch。
 
 ### F-4【P2】"随机生成"密码用的是 Math.random
-- 【问题描述】[UsersView.vue genPassword](项目根目录\frontend\src\views\UsersView.vue#L53-L61) 用 `Math.random()` 生成 16 位"强密码"——非密码学安全随机源，可预测性在安全审计里是扣分项；另外初始密码以明文 value 直接暴露在 DOM input 里（自动化脚本一行就抠出来了：`%ZE78pYphjUBgwNa`）， shoulder-surfing 风险顺手提一下。
+- 【问题描述】[UsersView.vue genPassword](frontend\src\views\UsersView.vue#L53-L61) 用 `Math.random()` 生成 16 位"强密码"——非密码学安全随机源，可预测性在安全审计里是扣分项；另外初始密码以明文 value 直接暴露在 DOM input 里（自动化脚本一行就抠出来了：`%ZE78pYphjUBgwNa`）， shoulder-surfing 风险顺手提一下。
 - 【严重程度】P2
 - 【改进建议】`crypto.getRandomValues`；生成后默认密文展示 + "显示"切换。
 

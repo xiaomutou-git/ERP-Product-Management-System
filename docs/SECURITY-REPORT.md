@@ -40,7 +40,7 @@
 
 ### VULN-01（P1）登出不失效令牌
 
-- **位置**：[auth.routes.js logout 路由](file:///项目根目录/backend/src/routes/auth.routes.js#L118-L132)
+- **位置**：[auth.routes.js logout 路由](backend/src/routes/auth.routes.js#L118-L132)
 - **复现步骤**：
   1. 登录获取 accessToken / refreshToken；
   2. `POST /api/auth/logout` 登出；
@@ -53,7 +53,7 @@
 
 ### VULN-02（P2）金额/数量字段无上限，整数精度溢出
 
-- **位置**：[purchaseOrders.routes.js itemSchema](file:///项目根目录/backend/src/routes/purchaseOrders.routes.js#L25-L33)、[products.routes.js salePrice](file:///项目根目录/backend/src/routes/products.routes.js#L31)、[inventory.routes.js adjust](file:///项目根目录/backend/src/routes/inventory.routes.js#L114-L119)
+- **位置**：[purchaseOrders.routes.js itemSchema](backend/src/routes/purchaseOrders.routes.js#L25-L33)、[products.routes.js salePrice](backend/src/routes/products.routes.js#L31)、[inventory.routes.js adjust](backend/src/routes/inventory.routes.js#L114-L119)
 - **复现步骤**：采购员创建采购单，`items[0].unitPrice = 9007199254740991`、`quantity = 999999` → 修复前创建成功，`total_amount` 实测入库为 `9.007190247541736e+21`（超出 JS `Number.MAX_SAFE_INTEGER`，精度丢失且 SQLite 列降级为 REAL 存储）。
 - **根因**：zod schema 对 unitPrice/salePrice 仅设下限无上限；库存调整的 `after` 值未封顶，可通过多次调整累计至超精度范围。
 - **危害**：金额字段是财务核心数据，精度溢出导致对账错误、报表失真；异常大值还可能引发下游计算异常（完整性破坏）。
@@ -65,7 +65,7 @@
 
 ### VULN-03（P2）审计日志 IP 可被伪造
 
-- **位置**：[audit.js clientIp()](file:///项目根目录/backend/src/utils/audit.js#L61-L75)
+- **位置**：[audit.js clientIp()](backend/src/utils/audit.js#L61-L75)
 - **复现步骤**：携带请求头 `X-Forwarded-For: 6.6.6.6` 尝试登录 → 修复前审计日志 `ip` 字段记录为 `6.6.6.6`（实测复现）。
 - **根因**：clientIp() 无条件信任 X-Forwarded-For 头，而服务直连部署时该头可由任意客户端随意构造。
 - **危害**：审计日志是安全溯源依据，IP 可被任意污染导致溯源失效、责任归属失真，也为"日志投毒"提供入口。
@@ -77,8 +77,8 @@
 - **位置**：项目根目录（修复前不存在任何 .gitignore）
 - **问题说明**：`backend/.env` 含 JWT 签名密钥、`backend/data/erp.db` 含用户密码哈希与全部业务数据、`.pnpm-cache/` 等缓存目录，一旦 `git init` 后随手提交即造成密钥与数据泄露。属"配置缺失"类风险，为后续版本管理埋雷。
 - **修复**：
-  - 新增根目录 [.gitignore](file:///项目根目录/.gitignore)：排除 `.env*`、`backend/data/`、`*.db*`、`node_modules/`、`dist/`、日志与缓存目录；
-  - 新增 [backend/.env.example](file:///项目根目录/backend/.env.example) 模板（不含真实值），规范环境变量交付方式。
+  - 新增根目录 [.gitignore](.gitignore)：排除 `.env*`、`backend/data/`、`*.db*`、`node_modules/`、`dist/`、日志与缓存目录；
+  - 新增 [backend/.env.example](backend/.env.example) 模板（不含真实值），规范环境变量交付方式。
 
 ### VULN-05（P3）JWT_SECRET 为低熵可预测值
 
@@ -91,12 +91,12 @@
 - **位置**：products / users / suppliers / purchaseOrders / inventory / auditLogs 共 6 处关键词搜索
 - **复现步骤**：`GET /api/products?keyword=%25`（即 `%`）→ 修复前返回全部 12 条商品。
 - **根因**：参数化查询防住了 SQL 注入，但用户输入中的 `%`/`_` 仍作为 LIKE 通配符解释，攻击者可用 `%%%...` 构造全表扫描（轻微 DoS）或探测数据分布。
-- **修复**：新增 [escapeLike()](file:///项目根目录/backend/src/utils/response.js#L57-L68) 工具函数转义 `\`、`%`、`_`，所有 LIKE 语句补 `ESCAPE '\'` 子句。注：generateOrderNo 中按单号前缀匹配的 LIKE 为内部生成值，非用户输入，无需转义。
+- **修复**：新增 [escapeLike()](backend/src/utils/response.js#L57-L68) 工具函数转义 `\`、`%`、`_`，所有 LIKE 语句补 `ESCAPE '\'` 子句。注：generateOrderNo 中按单号前缀匹配的 LIKE 为内部生成值，非用户输入，无需转义。
 - **复测**：`keyword=%`、`keyword=_` 均命中 0 条；`keyword=无线` 正常命中（功能无回归）；SQLi 字符串仍安全。通过。
 
 ### VULN-07（P3）登录时序侧信道枚举用户名
 
-- **位置**：[auth.routes.js login](file:///项目根目录/backend/src/routes/auth.routes.js#L51-L57)
+- **位置**：[auth.routes.js login](backend/src/routes/auth.routes.js#L51-L57)
 - **根因**：用户不存在时直接返回错误（无 bcrypt 运算，约几毫秒），用户存在时执行 cost=10 的 bcrypt 比对（约 100 毫秒），可通过响应耗时差异批量枚举有效用户名。
 - **修复**：模块加载时预生成占位 bcrypt 哈希（DUMMY_BCRYPT_HASH），用户不存在时也执行一次等代价比对，抹平时序差后再返回统一错误文案。
 - **备注**：本次静态审计同时确认"账号已停用"返回 403 明确提示为 PRD 2.3 要求的既有设计，不计为漏洞。
@@ -182,7 +182,7 @@
 
 ### R2-VULN-01（P3）采购单多行明细聚合可绕过金额上限，总金额精度溢出
 
-- **位置**：[purchaseOrders.routes.js 创建/编辑/提交路由](file:///项目根目录/backend/src/routes/purchaseOrders.routes.js)（修复前 L181/L217/L261 附近的总金额计算处）
+- **位置**：[purchaseOrders.routes.js 创建/编辑/提交路由](backend/src/routes/purchaseOrders.routes.js)（修复前 L181/L217/L261 附近的总金额计算处）
 - **复现步骤**：
   1. 库管创建 91 个商品；采购员创建采购单，91 行明细全部 `quantity=999999, unitPrice=99999999`（单行值均通过 VULN-02 修复后的 zod 上限校验）；
   2. 真实精确总金额应为 **9,099,990,809,000,091 分**；
@@ -255,12 +255,12 @@
 
 | 环节 | 实现 |
 | --- | --- |
-| 下发 | 登录成功后双令牌经 `Set-Cookie` 下发：`erp_access_token`（2h，`Path=/`）、`erp_refresh_token`（7d，**`Path=/api/auth` 收窄**，仅认证接口可携带）；属性 `HttpOnly + SameSite=Lax`，`NODE_ENV=production` 追加 `Secure`；**响应 JSON 不再返回任何 token 明文**（新增 [backend/src/utils/cookies.js](file:///项目根目录/backend/src/utils/cookies.js) 统一管理） |
-| 鉴权 | [auth.js](file:///项目根目录/backend/src/middlewares/auth.js) `authenticate` 优先读 Cookie，兼容 `Authorization: Bearer` 头平滑过渡；自实现轻量 Cookie 解析中间件（[cookie.js](file:///项目根目录/backend/src/middlewares/cookie.js)，避免引入 cookie-parser 依赖） |
+| 下发 | 登录成功后双令牌经 `Set-Cookie` 下发：`erp_access_token`（2h，`Path=/`）、`erp_refresh_token`（7d，**`Path=/api/auth` 收窄**，仅认证接口可携带）；属性 `HttpOnly + SameSite=Lax`，`NODE_ENV=production` 追加 `Secure`；**响应 JSON 不再返回任何 token 明文**（新增 [backend/src/utils/cookies.js](backend/src/utils/cookies.js) 统一管理） |
+| 鉴权 | [auth.js](backend/src/middlewares/auth.js) `authenticate` 优先读 Cookie，兼容 `Authorization: Bearer` 头平滑过渡；自实现轻量 Cookie 解析中间件（[cookie.js](backend/src/middlewares/cookie.js)，避免引入 cookie-parser 依赖） |
 | 刷新 | `POST /api/auth/refresh` 一律从 HttpOnly Cookie 读 refreshToken 换发新 access（同样写 Cookie），**不再接受 body 传参**；Cookie 缺失/无效统一 401 |
 | 登出 | `token_version+1` 全端失效 + `clearCookie` 清除两类 Cookie（maxAge=0 立即过期） |
-| CSRF | cookie 方案必配（新增 [csrf.js](file:///项目根目录/backend/src/middlewares/csrf.js)）：① `SameSite=Lax` 第一道防线；② 写操作（POST/PUT/PATCH/DELETE）校验 `Origin/Referer` 与允许源（`CORS_ORIGIN` 白名单或请求自身同源）一致，不一致 403。**取舍说明**：Origin/Referer 均缺失时放行——非浏览器请求无法自动携带受害者 Cookie，不构成 CSRF 场景（业界通行做法，亦保证服务端脚本可直连验证） |
-| 前端 | [http.ts](file:///项目根目录/frontend/src/api/http.ts)：`withCredentials: true`，**删除 Authorization 注入与全部 localStorage 存取**；401 时请求 `/api/auth/refresh`（Cookie 自动携带）成功重放原请求，失败清空 Pinia 用户态并跳登录（单飞+队列防并发刷新、排除登录/刷新接口防死循环）；[stores/auth.ts](file:///项目根目录/frontend/src/stores/auth.ts) 仅存非敏感用户态（内存），新增 `restoreSession()` 凭 `/api/auth/me` 恢复会话；路由守卫页面刷新后先恢复会话再放行 |
+| CSRF | cookie 方案必配（新增 [csrf.js](backend/src/middlewares/csrf.js)）：① `SameSite=Lax` 第一道防线；② 写操作（POST/PUT/PATCH/DELETE）校验 `Origin/Referer` 与允许源（`CORS_ORIGIN` 白名单或请求自身同源）一致，不一致 403。**取舍说明**：Origin/Referer 均缺失时放行——非浏览器请求无法自动携带受害者 Cookie，不构成 CSRF 场景（业界通行做法，亦保证服务端脚本可直连验证） |
+| 前端 | [http.ts](frontend/src/api/http.ts)：`withCredentials: true`，**删除 Authorization 注入与全部 localStorage 存取**；401 时请求 `/api/auth/refresh`（Cookie 自动携带）成功重放原请求，失败清空 Pinia 用户态并跳登录（单飞+队列防并发刷新、排除登录/刷新接口防死循环）；[stores/auth.ts](frontend/src/stores/auth.ts) 仅存非敏感用户态（内存），新增 `restoreSession()` 凭 `/api/auth/me` 恢复会话；路由守卫页面刷新后先恢复会话再放行 |
 
 **验证证据**（全部实测通过）：
 
@@ -270,7 +270,7 @@
 
 ### 二、修复二：生产环境启用 CSP + 后端托管前端产物
 
-**实施方式**（[app.js](file:///项目根目录/backend/src/app.js)）：
+**实施方式**（[app.js](backend/src/app.js)）：
 
 - `NODE_ENV=production` 时 helmet 启用 `contentSecurityPolicy`（`useDefaults:false`），策略为：`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'`。**不放开 `script-src` 的 unsafe-eval/unsafe-inline**；`style-src 'unsafe-inline'` 为 Element Plus/Vue 运行时动态样式注入所需；ECharts 5 默认 Canvas 渲染经实测无需任何额外指令。
 - 同步新增生产模式静态托管：`express.static` 指向 `../frontend/dist` + SPA fallback（非 `/api` 的 GET 回 index.html，API 未命中路由仍走 404 兜底），实现单端口同源部署。
@@ -302,11 +302,11 @@
 
 | 环节 | 实现 |
 | --- | --- |
-| 自定义 Store | 新增 [backend/src/utils/sqliteRateLimitStore.js](file:///项目根目录/backend/src/utils/sqliteRateLimitStore.js)：实现 express-rate-limit v7.5 Store 契约（`increment(key) → {totalHits, resetTime}` / `decrement` / `resetKey` / `resetAll` / `get` / `init` / `shutdown`） |
+| 自定义 Store | 新增 [backend/src/utils/sqliteRateLimitStore.js](backend/src/utils/sqliteRateLimitStore.js)：实现 express-rate-limit v7.5 Store 契约（`increment(key) → {totalHits, resetTime}` / `decrement` / `resetKey` / `resetAll` / `get` / `init` / `shutdown`） |
 | 原子计数 | `increment` 使用单条 UPSERT（`INSERT ... ON CONFLICT DO UPDATE ... RETURNING`）原子完成"窗口过期清零 + 计数 +1"，SQLite 语句级原子性保证多进程并发计数不丢不乱；命中过期 key 自动清零重开窗口 |
 | 键空间隔离 | 独立表 `rate_limit_hits(key PRIMARY KEY, count, reset_at)`，全局限流前缀 `global:`、登录限流前缀 `login:`（每限流器独立 Store 实例，满足 ERR_ERL_STORE_REUSE 约束）；WAL 模式 + `busy_timeout=3000` 缓解多进程写锁竞争 |
 | 防表膨胀 | 每 10 分钟定时删除 `reset_at` 过期行（模块级共享定时器）；服务优雅退出（SIGINT/SIGTERM）时 `stopRateLimitCleanup()` 执行 clearInterval |
-| 接入范围 | 全局限流（300 次/分/IP）与登录限流（10 次/分/IP）全部切换（[rateLimit.js](file:///项目根目录/backend/src/middlewares/rateLimit.js)）；**查证确认登录失败锁定计数本就存 SQLite**（`users.failed_attempts` 字段，非内存 Map），无需迁移 |
+| 接入范围 | 全局限流（300 次/分/IP）与登录限流（10 次/分/IP）全部切换（[rateLimit.js](backend/src/middlewares/rateLimit.js)）；**查证确认登录失败锁定计数本就存 SQLite**（`users.failed_attempts` 字段，非内存 Map），无需迁移 |
 | 范围说明 | 本方案覆盖"**单机多进程**"共享计数；**跨机器多实例**部署需改用 Redis 版 store（rate-limit-redis 等），代码注释与 README 均已注明 |
 
 **验证证据**：
@@ -320,14 +320,14 @@
 
 | 环节 | 实现 |
 | --- | --- |
-| 会话表 | [schema.js](file:///项目根目录/backend/src/db/schema.js) 新增 `refresh_tokens(jti PK, user_id, expires_at, status IN('active','rotated','revoked'), replaced_by, created_at)`，启动幂等建表 + user/expires 索引；新增 [refreshTokenStore.js](file:///项目根目录/backend/src/utils/refreshTokenStore.js) 封装签发/轮换/撤销/查询/过期清理 |
-| 签发 | [jwt.js](file:///项目根目录/backend/src/utils/jwt.js) `signRefresh(user, jti)` 在 payload 写入 `crypto.randomUUID()` 生成的 jti；登录时落库 status=active（expires_at 与 JWT exp 同源） |
+| 会话表 | [schema.js](backend/src/db/schema.js) 新增 `refresh_tokens(jti PK, user_id, expires_at, status IN('active','rotated','revoked'), replaced_by, created_at)`，启动幂等建表 + user/expires 索引；新增 [refreshTokenStore.js](backend/src/utils/refreshTokenStore.js) 封装签发/轮换/撤销/查询/过期清理 |
+| 签发 | [jwt.js](backend/src/utils/jwt.js) `signRefresh(user, jti)` 在 payload 写入 `crypto.randomUUID()` 生成的 jti；登录时落库 status=active（expires_at 与 JWT exp 同源） |
 | 轮换 | `/api/auth/refresh` 校验签名/过期/jti 后：status=active → 旧行置 rotated（记 replaced_by=新 jti），签发全新 jti 的 refresh token + 新 access token，**全部经 Set-Cookie 下发**，滑动续期 7 天 |
 | 重放检测 | status=rotated/revoked → 判定令牌重放（可能泄露）：撤销该用户全部 active refresh token + `token_version+1` 全端失效，返回 401，写审计日志 `refresh_replay_detected`（含 user_id/jti/IP），并清除 Cookie |
 | 未知 jti | jti 不存在（伪造/历史清理）→ 401；payload 无 jti（历史版本令牌）→ 401 需重新登录 |
 | 登出 | 当前 refresh token 的 jti 置 revoked，再走现有 `token_version+1` 全端失效 + 清 Cookie |
 | 清理 | 每 10 分钟定时删除 `expires_at` 过期行；rotated/revoked 行保留至过期（重放检测依据），过期后 JWT 亦失效，无安全影响 |
-| 前端兼容 | [http.ts](file:///项目根目录/frontend/src/api/http.ts) **无需改动**：/refresh 仍 Cookie 自动携带；核查确认拦截器四重防护（单飞+队列、排除登录/刷新接口、`_retried` 标记、刷新失败直接跳登录）保证轮换撤销导致的 401 直接跳登录、**不会死循环刷新** |
+| 前端兼容 | [http.ts](frontend/src/api/http.ts) **无需改动**：/refresh 仍 Cookie 自动携带；核查确认拦截器四重防护（单飞+队列、排除登录/刷新接口、`_retried` 标记、刷新失败直接跳登录）保证轮换撤销导致的 401 直接跳登录、**不会死循环刷新** |
 
 **验证证据**（verify.mjs 断言 37-44，全新种子库实测）：
 
@@ -370,9 +370,9 @@
 
 | 环节 | 实现 |
 | --- | --- |
-| 表结构 | [schema.js](file:///项目根目录/backend/src/db/schema.js)：`refresh_tokens` 新增 `rotated_at INTEGER`（轮换发生时刻，毫秒时间戳；未轮换为 NULL）；建表语句同步更新保证新库直接带列，并做**幂等迁移**（`PRAGMA table_info` 检查列不存在则 `ALTER TABLE ADD COLUMN`，老库启动自动补列，历史 rotated 行 rotated_at 为 NULL 视为不在宽限内按重放处理） |
-| 轮换记录 | [refreshTokenStore.js](file:///项目根目录/backend/src/utils/refreshTokenStore.js)：`markRotated()` 写入 `rotated_at=Date.now()`；新增 `findActiveLeafFromChain(jti)` 沿 `replaced_by` 溯源链查找家族当前 status=active 的叶子令牌（校验叶子未过期；深度上限 10 层防环兜底；遇 revoked/断链/超深返回 null） |
-| 三段分流 | [auth.routes.js](file:///项目根目录/backend/src/routes/auth.routes.js) `/api/auth/refresh` 命中非 active 状态时：**a) 宽限窗口内**（`now - rotated_at <= GRACE_PERIOD_MS`，默认 30000ms，环境变量 `REFRESH_GRACE_PERIOD_SECONDS` 读取，设 0 关闭宽限回到严格模式）视为并发竞态——沿链找到 active 叶子后以其所属用户信息换发新 **access cookie**（叶子不轮换、不重发 refresh cookie、宽限窗口以原 rotated_at 为准**不重置**，即复用叶子），返回 200，写审计 `refresh_grace_reuse`（含 user_id/jti/IP/leafJti）；链上无可用 active 叶子（已被撤销/过期）则按重放处理；**b) 超过宽限窗口**：维持重放防护；**c) revoked 状态**：无宽限，直接重放防护（登出/被撤销令牌复用是明确攻击信号） |
+| 表结构 | [schema.js](backend/src/db/schema.js)：`refresh_tokens` 新增 `rotated_at INTEGER`（轮换发生时刻，毫秒时间戳；未轮换为 NULL）；建表语句同步更新保证新库直接带列，并做**幂等迁移**（`PRAGMA table_info` 检查列不存在则 `ALTER TABLE ADD COLUMN`，老库启动自动补列，历史 rotated 行 rotated_at 为 NULL 视为不在宽限内按重放处理） |
+| 轮换记录 | [refreshTokenStore.js](backend/src/utils/refreshTokenStore.js)：`markRotated()` 写入 `rotated_at=Date.now()`；新增 `findActiveLeafFromChain(jti)` 沿 `replaced_by` 溯源链查找家族当前 status=active 的叶子令牌（校验叶子未过期；深度上限 10 层防环兜底；遇 revoked/断链/超深返回 null） |
+| 三段分流 | [auth.routes.js](backend/src/routes/auth.routes.js) `/api/auth/refresh` 命中非 active 状态时：**a) 宽限窗口内**（`now - rotated_at <= GRACE_PERIOD_MS`，默认 30000ms，环境变量 `REFRESH_GRACE_PERIOD_SECONDS` 读取，设 0 关闭宽限回到严格模式）视为并发竞态——沿链找到 active 叶子后以其所属用户信息换发新 **access cookie**（叶子不轮换、不重发 refresh cookie、宽限窗口以原 rotated_at 为准**不重置**，即复用叶子），返回 200，写审计 `refresh_grace_reuse`（含 user_id/jti/IP/leafJti）；链上无可用 active 叶子（已被撤销/过期）则按重放处理；**b) 超过宽限窗口**：维持重放防护；**c) revoked 状态**：无宽限，直接重放防护（登出/被撤销令牌复用是明确攻击信号） |
 | 安全边界 | 宽限放行前执行与 active 路径一致的用户校验（存在、未软删除、启用、`token_version` 与旧令牌 payload 一致）——改密/全端失效后旧令牌即使在宽限内也不放行（普通 401，不触发全端撤销）；宽限内复用不延长窗口（不刷新 rotated_at），窗口默认 30 秒远小于 refresh 7 天有效期，每次复用均留审计痕迹，风险可控 |
 
 ## 三、验证证据（全部实测通过）

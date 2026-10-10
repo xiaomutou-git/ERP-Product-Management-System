@@ -123,10 +123,12 @@ $env:NODE_ENV='production'; pnpm start   # PowerShell（Linux/macOS: NODE_ENV=pr
 
 | 用户名 | 初始密码 | 角色 | 说明 |
 | --- | --- | --- | --- |
-| admin | ***REMOVED-SEED-PASSWORD*** | 系统管理员 | **首次登录强制修改密码** |
-| purchaser01 | ***REMOVED-SEED-PASSWORD*** | 采购员 | 供应商与采购单维护 |
-| stocker01 | ***REMOVED-SEED-PASSWORD*** | 库存管理员 | 商品/分类/入库/库存调整 |
-| viewer01 | ***REMOVED-SEED-PASSWORD*** | 查看员 | 全部只读 |
+| admin | （种子脚本随机生成，见下） | 系统管理员 | **首次登录强制修改密码** |
+| purchaser01 | （同上） | 采购员 | 供应商与采购单维护 |
+| stocker01 | （同上） | 库存管理员 | 商品/分类/入库/库存调整 |
+| viewer01 | （同上） | 查看员 | 全部只读 |
+
+账号口令不再硬编码在仓库中：优先读环境变量 `SEED_ADMIN_PASSWORD` / `SEED_PURCHASER_PASSWORD` / `SEED_STOCKER_PASSWORD` / `SEED_VIEWER_PASSWORD`；未配置时由种子脚本随机生成并写入 `backend/data/seed-credentials.txt`（该目录已被 `.gitignore` 排除）。`scripts/verify.mjs` 会自动读取该文件或同名环境变量。
 
 内置演示数据：3 个一级分类（含 3 个子分类）、12 个商品、3 个供应商、3 张采购单（已入库/已提交/草稿各一张）与库存流水。
 

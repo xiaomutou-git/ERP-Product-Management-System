@@ -170,6 +170,42 @@ function readBackendEnv(key) {
     return undefined;
   }
 }
+/**
+ * 种子账号口令：优先读环境变量 SEED_*_PASSWORD，其次读种子脚本写出的
+ * backend/data/seed-credentials.txt（backend/data/ 已被 .gitignore 排除）。
+ * 仓库内不再保存任何默认口令明文。
+ * @returns {Record<string, string>} 用户名 -> 口令
+ */
+const SEED_PASSWORDS = (function loadSeedPasswords() {
+  const map = {};
+  try {
+    const txt = readFileSync(new URL('../backend/data/seed-credentials.txt', import.meta.url), 'utf8');
+    for (const line of txt.split(/\r?\n/)) {
+      const m = line.match(/^([A-Za-z0-9_]+)=(\S+)$/);
+      if (m) map[m[1]] = m[2];
+    }
+  } catch { /* 文件不存在时改用环境变量 */ }
+  const env = {
+    admin: process.env.SEED_ADMIN_PASSWORD,
+    purchaser01: process.env.SEED_PURCHASER_PASSWORD,
+    stocker01: process.env.SEED_STOCKER_PASSWORD,
+    viewer01: process.env.SEED_VIEWER_PASSWORD,
+  };
+  for (const [k, val] of Object.entries(env)) if (val) map[k] = val;
+  return map;
+})();
+
+const ADMIN_PASSWORD = SEED_PASSWORDS.admin;
+const PURCHASER_PASSWORD = SEED_PASSWORDS.purchaser01;
+const STOCKER_PASSWORD = SEED_PASSWORDS.stocker01;
+const VIEWER_PASSWORD = SEED_PASSWORDS.viewer01;
+
+if (!ADMIN_PASSWORD || !PURCHASER_PASSWORD || !STOCKER_PASSWORD || !VIEWER_PASSWORD) {
+  console.error('缺少种子账号口令：请先启动后端完成种子（会生成 backend/data/seed-credentials.txt），');
+  console.error('或显式设置 SEED_ADMIN_PASSWORD / SEED_PURCHASER_PASSWORD / SEED_STOCKER_PASSWORD / SEED_VIEWER_PASSWORD。');
+  process.exit(2);
+}
+
 
 /**
  * 以只读连接打开 backend 数据库（WAL 模式支持与在线服务并发读取，
@@ -205,9 +241,9 @@ console.log('== ERP 后端核心链路验证（HttpOnly Cookie 会话） ==');
 }
 
 // 2. 管理员登录（种子：首登强制改密）——组合校验 Set-Cookie 安全属性与 JSON 无 token 明文
-const adminFirst = await login('admin', '***REMOVED-SEED-PASSWORD***');
+const adminFirst = await login('admin', ADMIN_PASSWORD);
 {
-  const r = await api('POST', '/api/auth/login', { body: { username: 'admin', password: '***REMOVED-SEED-PASSWORD***' } });
+  const r = await api('POST', '/api/auth/login', { body: { username: 'admin', password: ADMIN_PASSWORD } });
   const sc = r.headers.getSetCookie ? r.headers.getSetCookie() : [r.headers.get('set-cookie')].filter(Boolean);
   const hasHttpOnlyAccess = sc.some((c) => c.startsWith('erp_access_token=') && /httponly/i.test(c) && /samesite=lax/i.test(c) && /path=\//i.test(c));
   const hasHttpOnlyRefresh = sc.some((c) => c.startsWith('erp_refresh_token=') && /httponly/i.test(c) && /path=\/api\/auth/i.test(c));
@@ -225,7 +261,7 @@ const adminFirst = await login('admin', '***REMOVED-SEED-PASSWORD***');
 
 // 4. 改密
 {
-  const r = await api('PUT', '/api/auth/password', { jar: adminFirst.jar, body: { oldPassword: '***REMOVED-SEED-PASSWORD***', newPassword: '***REMOVED-SEED-PASSWORD***' } });
+  const r = await api('PUT', '/api/auth/password', { jar: adminFirst.jar, body: { oldPassword: ADMIN_PASSWORD, newPassword: ADMIN_PASSWORD } });
   report('修改本人密码成功', r.status === 200 && r.json?.code === 0, r.json);
 }
 
@@ -236,7 +272,7 @@ const adminFirst = await login('admin', '***REMOVED-SEED-PASSWORD***');
 }
 
 // 6. 新密码重新登录
-const admin = await login('admin', '***REMOVED-SEED-PASSWORD***');
+const admin = await login('admin', ADMIN_PASSWORD);
 report('改密后重新登录成功且改密标记已清除', admin?.user?.mustChangePassword === false, admin?.user);
 
 // 7. refresh 凭 Cookie 换新 access token（无需 body 传 refreshToken）
@@ -294,9 +330,9 @@ let testProductId = 0;
 }
 
 // ===== 一次性登录其余三个角色，后续全部复用 Cookie =====
-const purchaser = await login('purchaser01', '***REMOVED-SEED-PASSWORD***');
-const stocker = await login('stocker01', '***REMOVED-SEED-PASSWORD***');
-const viewer = await login('viewer01', '***REMOVED-SEED-PASSWORD***');
+const purchaser = await login('purchaser01', PURCHASER_PASSWORD);
+const stocker = await login('stocker01', STOCKER_PASSWORD);
+const viewer = await login('viewer01', VIEWER_PASSWORD);
 
 // 13. 演示账号登录成功
 report('演示账号 purchaser01/stocker01/viewer01 登录成功',
@@ -467,7 +503,7 @@ await new Promise((r) => setTimeout(r, 61000));
   for (let i = 0; i < 5; i++) {
     await api('POST', '/api/auth/login', { body: { username: 'viewer01', password: 'WrongPwd1' } });
   }
-  const sixth = await api('POST', '/api/auth/login', { body: { username: 'viewer01', password: '***REMOVED-SEED-PASSWORD***' } });
+  const sixth = await api('POST', '/api/auth/login', { body: { username: 'viewer01', password: VIEWER_PASSWORD } });
   report('连续 5 次错误后正确密码登录返回 423 锁定', sixth.status === 423 && sixth.json?.code === 1007, sixth.json);
 }
 
@@ -477,7 +513,7 @@ await new Promise((r) => setTimeout(r, 61000));
   const uid = users.json?.data?.list?.[0]?.id;
   const unlock = await api('POST', `/api/users/${uid}/unlock`, { jar: admin.jar });
   await new Promise((r) => setTimeout(r, 61000)); // 再次等新窗口避免 429 干扰
-  const relogin = await login('viewer01', '***REMOVED-SEED-PASSWORD***');
+  const relogin = await login('viewer01', VIEWER_PASSWORD);
   // 登出：两类 Cookie 应被清除（Set-Cookie maxAge=0/立即过期）
   const logoutRes = await api('POST', '/api/auth/logout', { jar: relogin.jar });
   const sc = logoutRes.headers.getSetCookie ? logoutRes.headers.getSetCookie() : [logoutRes.headers.get('set-cookie')].filter(Boolean);
@@ -494,7 +530,7 @@ await new Promise((r) => setTimeout(r, 61000));
 console.log('== 第二批安全加固断言（refresh 轮换 / 重放检测 / SQLite 共享限流） ==');
 
 // 37. refresh 轮换：/refresh 返回全新 refresh Cookie 且与旧值不同（滑动续期 7 天）
-const rotSession = await login('viewer01', '***REMOVED-SEED-PASSWORD***');
+const rotSession = await login('viewer01', VIEWER_PASSWORD);
 const oldRefreshToken = rotSession?.jar?.erp_refresh_token;
 const oldJti = oldRefreshToken ? decodeJwtPayload(oldRefreshToken)?.jti : undefined;
 const rotRes = await api('POST', '/api/auth/refresh', { jar: rotSession.jar });
@@ -538,7 +574,7 @@ report('重放防护：触发后该用户全部 refresh token 已撤销（轮换
 }
 
 // 42. 伪造令牌：签名合法但 jti 不存在的 refresh 返回 401
-const unknownSession = await login('viewer01', '***REMOVED-SEED-PASSWORD***'); // 重放防护已 tv+1，重新登录取新会话
+const unknownSession = await login('viewer01', VIEWER_PASSWORD); // 重放防护已 tv+1，重新登录取新会话
 const unknownPayload = decodeJwtPayload(unknownSession?.jar?.erp_refresh_token);
 const testSecret = readBackendEnv('JWT_SECRET');
 const forgedToken = unknownPayload && testSecret
@@ -553,7 +589,7 @@ report('伪造令牌：签名合法但 jti 不存在的 refresh 返回 401',
 
 // 43. 登出撤销：登出后当前 refresh token 的 jti 在库中置为 revoked（只读连接直查 SQLite）
 {
-  const logoutSession = await login('viewer01', '***REMOVED-SEED-PASSWORD***');
+  const logoutSession = await login('viewer01', VIEWER_PASSWORD);
   const logoutJti = decodeJwtPayload(logoutSession?.jar?.erp_refresh_token)?.jti;
   const logoutRes2 = await api('POST', '/api/auth/logout', { jar: logoutSession.jar });
   let jtiStatus = null;
@@ -576,7 +612,7 @@ console.log('== 第三批安全加固断言（refresh 轮换宽限窗口 / 并�
 //     不触发全端撤销——以宽限换发的新 access 调 /me 仍 200（若误撤销则 tv+1 会 401），
 //     且轮换出的叶子令牌经只读连接直查仍为 active；宽限复用只换发 access cookie（叶子不轮换）
 //     （注：2026-09-24 新增断言 44-47，原第 44 项限流断言顺延为第 48 项）
-const graceSession = await login('viewer01', '***REMOVED-SEED-PASSWORD***');
+const graceSession = await login('viewer01', VIEWER_PASSWORD);
 const graceOldRefresh = graceSession?.jar?.erp_refresh_token;
 const graceOldJti = graceOldRefresh ? decodeJwtPayload(graceOldRefresh)?.jti : undefined;
 const graceRotRes = await api('POST', '/api/auth/refresh', { jar: graceSession.jar }); // tab1：轮换 A -> B
@@ -635,7 +671,7 @@ report('宽限过期重放：超过宽限窗口后旧 token 再刷返回 401 重
   { status: graceExpiredRes.status, auditHit: !!graceReplayHit, leafStatus: leafStatusAfterReplay });
 
 // 47. revoked 无宽限：登出后旧 refresh token 再刷 -> 401（不进宽限逻辑，直接按重放防护处置）
-const revokedSession = await login('viewer01', '***REMOVED-SEED-PASSWORD***');
+const revokedSession = await login('viewer01', VIEWER_PASSWORD);
 const revokedOldRefresh = revokedSession?.jar?.erp_refresh_token;
 const revokedJti = revokedOldRefresh ? decodeJwtPayload(revokedOldRefresh)?.jti : undefined;
 const logoutForGrace = await api('POST', '/api/auth/logout', { jar: revokedSession.jar });

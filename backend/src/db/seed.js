@@ -1,16 +1,56 @@
 /**
  * 种子数据脚本（类级注释）
  * ------------------------------------------------------------------
- * 核心功能：向空库写入默认管理员（admin/***REMOVED-SEED-PASSWORD***）、演示账号、
- *          演示分类/商品/供应商/采购单/库存与流水数据，供验收演示使用。
+ * 核心功能：向空库写入默认管理员、演示账号、演示分类/商品/供应商/采购单/库存与流水数据，
+ *          供验收演示使用。
  * 设计思路：仅在 users 表为空时执行（幂等）；密码使用 bcrypt(cost=10) 哈希；
  *          默认管理员按 PRD 2.3 标记 must_change_password=1（首登强制改密）；
  *          演示采购单包含一张近 7 日"已入库"单据，用于看板趋势图展示。
  * 适用场景：服务首次启动时自动执行。
  * 创建时间：2026-09-21
+ * ------------------------------------------------------------------
+ * 变更记录：2026-10-10 安全修复——移除全部硬编码默认口令（原先 admin / purchaser01 /
+ *          stocker01 / viewer01 的口令以明文写在源码、README、PRD 与验证脚本中）。
+ *          现在口令按以下优先级获取，仓库内不再保存任何默认口令明文：
+ *            1) 环境变量 SEED_ADMIN_PASSWORD / SEED_PURCHASER_PASSWORD /
+ *               SEED_STOCKER_PASSWORD / SEED_VIEWER_PASSWORD；
+ *            2) 未配置时用加密安全随机数生成，并写入 backend/data/seed-credentials.txt
+ *               （该目录已被 .gitignore 排除，不会进入版本库）。
  */
+import { randomBytes } from 'node:crypto';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import db from './index.js';
+
+/** 种子账号定义（口令不在此处，见文件头变更记录） */
+const SEED_ACCOUNTS = [
+  { username: 'admin', envKey: 'SEED_ADMIN_PASSWORD', realName: '系统管理员', role: 'admin', mustChange: 1 },
+  { username: 'purchaser01', envKey: 'SEED_PURCHASER_PASSWORD', realName: '王小采', role: 'purchaser', mustChange: 0 },
+  { username: 'stocker01', envKey: 'SEED_STOCKER_PASSWORD', realName: '李库管', role: 'stockkeeper', mustChange: 0 },
+  { username: 'viewer01', envKey: 'SEED_VIEWER_PASSWORD', realName: '赵查看', role: 'viewer', mustChange: 0 },
+];
+
+/**
+ * 生成本次种子使用的随机口令（base64url，16 字符，无 shell 敏感字符）
+ * @returns {string} 随机口令
+ */
+function generatePassword() {
+  return randomBytes(12).toString('base64url');
+}
+
+/**
+ * 将自动生成的口令写入 backend/data/seed-credentials.txt（已被 .gitignore 排除），
+ * 供本地联调与 scripts/verify.mjs 读取；文件仅存在于本机，不会进入版本库。
+ * @param {string[]} lines 形如 "username=password" 的行
+ * @returns {string} 写入的文件绝对路径
+ */
+function writeCredentialsFile(lines) {
+  const file = fileURLToPath(new URL('../../data/seed-credentials.txt', import.meta.url));
+  mkdirSync(fileURLToPath(new URL('../../data/', import.meta.url)), { recursive: true });
+  writeFileSync(file, `# 由 backend/src/db/seed.js 生成，仅供本机使用；请勿提交到版本库\n${lines.join('\n')}\n`, 'utf8');
+  return file;
+}
 
 /**
  * 执行种子数据写入（仅当用户表为空时）
@@ -22,6 +62,8 @@ export function seed() {
   if (userCount > 0) return; // 已有数据则跳过，保证幂等
 
   const now = new Date().toISOString();
+  /** 本次由随机数生成的口令（未通过环境变量指定时），事务成功后落盘 */
+  const generated = [];
   const run = db.transaction(() => {
     /* ---------- 1. 账号 ---------- */
     const insertUser = db.prepare(`
@@ -32,40 +74,19 @@ export function seed() {
     const roleMap = {};
     for (const r of db.prepare('SELECT id, code FROM roles').all()) roleMap[r.code] = r.id;
 
-    // 默认管理员：首登强制改密（PRD 2.3 / A01）
-    insertUser.run({
-      username: 'admin',
-      passwordHash: bcrypt.hashSync('***REMOVED-SEED-PASSWORD***', 10),
-      realName: '系统管理员',
-      roleId: roleMap.admin,
-      mustChange: 1,
-      now,
-    });
-    // 演示账号（首登不强制改密，便于验收各角色）
-    insertUser.run({
-      username: 'purchaser01',
-      passwordHash: bcrypt.hashSync('***REMOVED-SEED-PASSWORD***', 10),
-      realName: '王小采',
-      roleId: roleMap.purchaser,
-      mustChange: 0,
-      now,
-    });
-    insertUser.run({
-      username: 'stocker01',
-      passwordHash: bcrypt.hashSync('***REMOVED-SEED-PASSWORD***', 10),
-      realName: '李库管',
-      roleId: roleMap.stockkeeper,
-      mustChange: 0,
-      now,
-    });
-    insertUser.run({
-      username: 'viewer01',
-      passwordHash: bcrypt.hashSync('***REMOVED-SEED-PASSWORD***', 10),
-      realName: '赵查看',
-      roleId: roleMap.viewer,
-      mustChange: 0,
-      now,
-    });
+    for (const acc of SEED_ACCOUNTS) {
+      const fromEnv = process.env[acc.envKey];
+      const password = fromEnv && fromEnv.length > 0 ? fromEnv : generatePassword();
+      if (!fromEnv) generated.push(`${acc.username}=${password}`);
+      insertUser.run({
+        username: acc.username,
+        passwordHash: bcrypt.hashSync(password, 10),
+        realName: acc.realName,
+        roleId: roleMap[acc.role],
+        mustChange: acc.mustChange,
+        now,
+      });
+    }
 
     /* ---------- 2. 分类 ---------- */
     const insertCat = db.prepare(
@@ -163,5 +184,11 @@ export function seed() {
   });
 
   run();
-  console.log('[seed] 种子数据写入完成（默认管理员 admin / ***REMOVED-SEED-PASSWORD***，首登需改密）');
+
+  if (generated.length > 0) {
+    const file = writeCredentialsFile(generated);
+    console.log(`[seed] 种子数据写入完成。随机生成的口令已写入 ${file}（已被 .gitignore 排除，请勿提交）；如需固定口令，可用 SEED_ADMIN_PASSWORD / SEED_PURCHASER_PASSWORD / SEED_STOCKER_PASSWORD / SEED_VIEWER_PASSWORD 环境变量指定后重置数据库。`);
+  } else {
+    console.log('[seed] 种子数据写入完成（口令取自 SEED_*_PASSWORD 环境变量）。');
+  }
 }
